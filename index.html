@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacto Aniversario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@7.3.0/dist/pouchdb.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6; /* blue-500 */
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .carousel-item {
+            display: none;
+            transition: opacity 1s ease-in-out;
+        }
+        .carousel-item.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-6xl">
+        <header>
+            <h1 id="main-title" class="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 text-center mb-8">
+                Cargando...
+            </h1>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Columna Izquierda: Carrusel de Imágenes -->
+            <div class="w-full">
+                <div id="carousel" class="relative w-full h-96 bg-white rounded-2xl shadow-lg overflow-hidden flex items-center justify-center">
+                    <p class="text-gray-500">Cargando imágenes...</p>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Información y Pactos -->
+            <div id="info-panel" class="w-full bg-white p-6 sm:p-8 rounded-2xl shadow-lg flex flex-col">
+                <!-- Pestañas -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button id="tab-resumen" class="py-2 px-4 text-gray-500 border-b-2 border-transparent tab-active">Resumen</button>
+                    <button id="tab-pactos" class="py-2 px-4 text-gray-500 border-b-2 border-transparent">Ver Pactos</button>
+                </div>
+
+                <!-- Contenido de las Pestañas -->
+                <div class="flex-grow">
+                    <!-- Contenido Resumen -->
+                    <div id="content-resumen">
+                        <div class="text-center space-y-4">
+                            <div>
+                                <p class="text-lg text-gray-500">Pactado</p>
+                                <p id="monto-alcanzado" class="text-4xl sm:text-5xl font-bold text-blue-600">S/ 0.00</p>
+                            </div>
+                            <div class="text-gray-400">de</div>
+                            <div>
+                                <p id="monto-total" class="text-3xl sm:text-4xl text-gray-700">S/ 0.00</p>
+                            </div>
+                        </div>
+                        <div class="mt-8">
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <p id="progress-text" class="text-center text-sm text-gray-500 mt-2">0%</p>
+                        </div>
+                        <div class="mt-8 text-center">
+                            <button id="btn-nuevo-pacto" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-md">
+                                Nuevo Pacto
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contenido Ver Pactos -->
+                    <div id="content-pactos" class="hidden">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-700">Ministerios Pactantes</h3>
+                        <div id="lista-pactos" class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                            <!-- Lista de pactos se genera aquí -->
+                        </div>
+                        <div class="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
+                            <span class="text-lg font-bold text-gray-800">Total</span>
+                            <span id="total-pactos-lista" class="text-lg font-bold text-gray-800">S/ 0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal/Formulario para Nuevo Pacto -->
+    <div id="modal-form" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-95 opacity-0" id="form-container">
+            <h2 class="text-2xl font-bold text-center mb-6">Registrar Nuevo Pacto</h2>
+            <form id="nuevo-pacto-form">
+                <div class="mb-4">
+                    <label for="pactante" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Pactante</label>
+                    <input type="text" id="pactante" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="ministerio" class="block text-sm font-medium text-gray-700 mb-1">Ministerio</label>
+                    <select id="ministerio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <!-- Opciones de ministerio se generan aquí -->
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label for="monto" class="block text-sm font-medium text-gray-700 mb-1">Monto a Pactar (S/)</label>
+                    <input type="number" id="monto" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="flex gap-4">
+                     <button type="button" id="btn-cancelar" class="w-full bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition">Pactar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- INICIALIZACIÓN DE POUCHDB Y SINCRONIZACIÓN ---
+            const db = new PouchDB('pactos_aniversario');
+            const remoteDB = new PouchDB('https://couchdb.insoftperu.com/pactos');
+
+            db.sync(remoteDB, {
+                live: true,
+                retry: true
+            }).on('change', () => {
+                console.log('Sincronización: Se detectaron cambios.');
+                cargarYActualizarPactos();
+            }).on('error', (err) => {
+                console.error('Error de sincronización:', err);
+            });
+
+            // --- ESTADO INICIAL DE LA APLICACIÓN ---
+            let config = {};
+            let slideActual = 0;
+
+            // --- SELECCIÓN DE ELEMENTOS DEL DOM ---
+            const mainTitleEl = document.getElementById('main-title');
+            const montoAlcanzadoEl = document.getElementById('monto-alcanzado');
+            const montoTotalEl = document.getElementById('monto-total');
+            const progressBarEl = document.getElementById('progress-bar');
+            const progressTextEl = document.getElementById('progress-text');
+            const listaPactosEl = document.getElementById('lista-pactos');
+            const totalPactosListaEl = document.getElementById('total-pactos-lista');
+            const tabResumen = document.getElementById('tab-resumen');
+            const tabPactos = document.getElementById('tab-pactos');
+            const contentResumen = document.getElementById('content-resumen');
+            const contentPactos = document.getElementById('content-pactos');
+            const btnNuevoPacto = document.getElementById('btn-nuevo-pacto');
+            const modalForm = document.getElementById('modal-form');
+            const formContainer = document.getElementById('form-container');
+            const btnCancelar = document.getElementById('btn-cancelar');
+            const nuevoPactoForm = document.getElementById('nuevo-pacto-form');
+            const carruselContainer = document.getElementById('carousel');
+            const ministerioSelect = document.getElementById('ministerio');
+
+            // --- FUNCIONES ---
+
+            // Cargar o crear configuración
+            const cargarConfiguracion = async () => {
+                try {
+                    return await db.get('configuracion_proyecto');
+                } catch (error) {
+                    if (error.name === 'not_found') {
+                        console.log("No se encontró configuración, creando una por defecto.");
+                        const defaultConfig = {
+                            _id: 'configuracion_proyecto',
+                            titulo: 'Pacto Aniversario 2025',
+                            meta: 150000,
+                            imagenes: [
+                                'https://placehold.co/600x400/3b82f6/ffffff?text=Proyecto+1',
+                                'https://placehold.co/600x400/16a34a/ffffff?text=Comunidad',
+                                'https://placehold.co/600x400/f97316/ffffff?text=Objetivo',
+                                'https://placehold.co/600x400/c026d3/ffffff?text=Celebraci%C3%B3n',
+                            ],
+                            ministerios: [
+                                'Ancianos', 'Junta', 'Adultos', 'Nuevas Generaciones', 'Jóvenes', 'Niños', 'Otro'
+                            ]
+                        };
+                        await db.put(defaultConfig);
+                        return defaultConfig;
+                    } else {
+                        console.error("Error al cargar configuración:", error);
+                        // Fallback por si hay otro error
+                        return { titulo: 'Error al Cargar', meta: 0, imagenes: [], ministerios: [] };
+                    }
+                }
+            };
+            
+            // Aplicar configuración a la UI
+            const aplicarConfiguracion = () => {
+                mainTitleEl.textContent = config.titulo;
+                document.title = config.titulo;
+
+                // Cargar ministerios en el select
+                ministerioSelect.innerHTML = '';
+                config.ministerios.forEach(min => {
+                    const option = document.createElement('option');
+                    option.value = min;
+                    option.textContent = min;
+                    ministerioSelect.appendChild(option);
+                });
+
+                // Cargar imágenes en el carrusel
+                inicializarCarrusel(config.imagenes);
+            };
+
+            // Formatear número a moneda
+            const formatearMoneda = (numero) => {
+                return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(numero);
+            };
+            
+            // Función para renderizar la lista de pactos agrupados por ministerio
+            const renderizarListaPactos = (pactos) => {
+                listaPactosEl.innerHTML = '';
+                const pactosPorMinisterio = pactos.reduce((acc, pacto) => {
+                    if (pacto.ministerio) { // Asegurarse que el pacto tiene ministerio
+                         acc[pacto.ministerio] = (acc[pacto.ministerio] || 0) + pacto.monto;
+                    }
+                    return acc;
+                }, {});
+
+                const ministeriosOrdenados = Object.keys(pactosPorMinisterio).sort((a,b) => pactosPorMinisterio[b] - pactosPorMinisterio[a]);
+
+                if (ministeriosOrdenados.length === 0) {
+                    listaPactosEl.innerHTML = '<p class="text-gray-500">Aún no hay pactos registrados.</p>';
+                } else {
+                    ministeriosOrdenados.forEach(ministerio => {
+                        const monto = pactosPorMinisterio[ministerio];
+                        const pactoDiv = document.createElement('div');
+                        pactoDiv.className = 'flex justify-between items-center p-2 rounded-lg';
+                        pactoDiv.innerHTML = `
+                            <span class="text-gray-600">${ministerio}</span>
+                            <span class="font-semibold">${formatearMoneda(monto)}</span>
+                        `;
+                        listaPactosEl.appendChild(pactoDiv);
+                    });
+                }
+                
+                const totalPactado = pactos.reduce((sum, pacto) => sum + (pacto.monto || 0), 0);
+                totalPactosListaEl.textContent = formatearMoneda(totalPactado);
+            };
+            
+            // Función para actualizar la UI completa
+            const actualizarUI = (pactos) => {
+                const totalPactado = pactos.reduce((sum, pacto) => sum + (pacto.monto || 0), 0);
+                const porcentaje = config.meta > 0 ? (totalPactado / config.meta) * 100 : 0;
+
+                montoAlcanzadoEl.textContent = formatearMoneda(totalPactado);
+                montoTotalEl.textContent = formatearMoneda(config.meta);
+                
+                progressBarEl.style.width = `${Math.min(porcentaje, 100)}%`;
+                progressTextEl.textContent = `${porcentaje.toFixed(2)}% alcanzado`;
+
+                renderizarListaPactos(pactos);
+            };
+
+            // Cargar pactos desde PouchDB y actualizar la UI
+            const cargarYActualizarPactos = async () => {
+                try {
+                    const result = await db.allDocs({ include_docs: true });
+                    const pactosActuales = result.rows
+                        .map(row => row.doc)
+                        .filter(doc => doc._id !== 'configuracion_proyecto'); // Excluir el doc de config
+                    actualizarUI(pactosActuales);
+                } catch (error) {
+                    console.error("Error al cargar pactos de PouchDB:", error);
+                }
+            };
+
+            // Función para cambiar de pestaña
+            const cambiarPestana = (pestanaActiva) => {
+                if (pestanaActiva === 'resumen') {
+                    tabResumen.classList.add('tab-active');
+                    tabPactos.classList.remove('tab-active');
+                    contentResumen.classList.remove('hidden');
+                    contentPactos.classList.add('hidden');
+                } else {
+                    tabResumen.classList.remove('tab-active');
+                    tabPactos.classList.add('tab-active');
+                    contentResumen.classList.add('hidden');
+                    contentPactos.classList.remove('hidden');
+                }
+            };
+            
+            // Funciones para el modal
+            const abrirModal = () => {
+                modalForm.classList.remove('hidden');
+                modalForm.classList.add('flex');
+                setTimeout(() => {
+                    formContainer.classList.remove('scale-95', 'opacity-0');
+                }, 10);
+            };
+            
+            const cerrarModal = () => {
+                formContainer.classList.add('scale-95', 'opacity-0');
+                 setTimeout(() => {
+                    modalForm.classList.add('hidden');
+                    modalForm.classList.remove('flex');
+                }, 200);
+            };
+
+            // Manejo del envío del formulario
+            const manejarSubmitPacto = async (e) => {
+                e.preventDefault();
+                const pactante = document.getElementById('pactante').value;
+                const ministerio = ministerioSelect.value;
+                const monto = parseFloat(document.getElementById('monto').value);
+
+                if (pactante && ministerio && monto > 0) {
+                    const nuevoPacto = {
+                        _id: 'pacto_' + new Date().toISOString(),
+                        pactante,
+                        ministerio,
+                        monto
+                    };
+                    try {
+                        await db.put(nuevoPacto);
+                        nuevoPactoForm.reset();
+                        cerrarModal();
+                        cambiarPestana('resumen');
+                    } catch (error) {
+                         console.error("Error al guardar el pacto:", error);
+                    }
+                } else {
+                    console.error('Por favor, complete todos los campos correctamente.');
+                }
+            };
+
+            // --- LÓGICA DEL CARRUSEL ---
+            const inicializarCarrusel = (imagenes) => {
+                carruselContainer.innerHTML = '';
+                if (!imagenes || imagenes.length === 0) {
+                    carruselContainer.innerHTML = '<p class="text-gray-500">No hay imágenes configuradas.</p>';
+                    return;
+                }
+                imagenes.forEach((src, index) => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    img.alt = `Imagen del proyecto ${index + 1}`;
+                    img.className = 'carousel-item absolute w-full h-full object-cover';
+                    if (index === 0) img.classList.add('active');
+                    carruselContainer.appendChild(img);
+                });
+                
+                // Reiniciar intervalo si ya existía
+                if(window.carouselInterval) clearInterval(window.carouselInterval);
+                window.carouselInterval = setInterval(() => siguienteSlide(imagenes.length), 4000);
+            };
+
+            const mostrarSlide = () => {
+                const slides = carruselContainer.querySelectorAll('.carousel-item');
+                if (slides.length === 0) return;
+                slides.forEach((slide) => {
+                    slide.classList.remove('active', 'opacity-100');
+                    slide.classList.add('opacity-0');
+                });
+                slides[slideActual].classList.add('active', 'opacity-100');
+            };
+
+            const siguienteSlide = (numSlides) => {
+                slideActual = (slideActual + 1) % numSlides;
+                mostrarSlide();
+            };
+
+            // --- INICIALIZACIÓN Y EVENT LISTENERS ---
+            tabResumen.addEventListener('click', () => cambiarPestana('resumen'));
+            tabPactos.addEventListener('click', () => cambiarPestana('pactos'));
+            btnNuevoPacto.addEventListener('click', abrirModal);
+            btnCancelar.addEventListener('click', cerrarModal);
+            modalForm.addEventListener('click', (e) => {
+                if (e.target === modalForm) {
+                    cerrarModal();
+                }
+            });
+            nuevoPactoForm.addEventListener('submit', manejarSubmitPacto);
+            
+            // --- FLUJO DE CARGA PRINCIPAL ---
+            config = await cargarConfiguracion();
+            aplicarConfiguracion();
+            await cargarYActualizarPactos();
+        });
+    </script>
+</body>
+</html>
